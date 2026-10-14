@@ -1,0 +1,41 @@
+{
+  "note": "From C4 proposal. life_critical devices: severity forced to Critical (C3) and max action METER (C4). Block rules max priority 100.",
+  "max_block_priority": 100,
+  "devices": [
+    {
+      "device_id": "ventilator_01",
+      "protection_priority": 1000,
+      "life_critical": true
+    },
+    {
+      "device_id": "insulin_pump_01",
+      "protection_priority": 990,
+      "life_critical": true
+    },
+    {
+      "device_id": "infusion_pump_01",
+      "protection_priority": 980,
+      "life_critical": true
+    },
+    {
+      "device_id": "cardiac_monitor_01",
+      "protection_priority": 970,
+      "life_critical": false
+    },
+    {
+      "device_id": "bp_monitor_01",
+      "protection_priority": 960,
+      "life_critical": false
+    },
+    {
+      "device_id": "patient_server_01",
+      "protection_priority": 950,
+      "life_critical": false
+    },
+    {
+      "device_id": "admin_server_01",
+      "protection_priority": 940,
+      "life_critical": false
+    }
+  ]
+}
