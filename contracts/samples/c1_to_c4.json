@@ -1,0 +1,7 @@
+{
+  "alert_type": "LATERAL_MOVEMENT",
+  "source_ip": "10.0.0.6",
+  "attempted_destination": "10.0.0.20",
+  "device_name": "bp_monitor_01",
+  "timestamp": "2026-10-14T10:00:00Z"
+}

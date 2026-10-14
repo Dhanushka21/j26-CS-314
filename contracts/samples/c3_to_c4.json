@@ -1,0 +1,25 @@
+{
+  "device_id": "ventilator_01",
+  "timestamp": "2026-10-14T10:00:00Z",
+  "attack_type": "TCP_IP-DDoS-SYN",
+  "confidence": 0.94,
+  "severity": "Critical",
+  "critical_protection_flag": true,
+  "shap_top_features": [
+    {
+      "feature": "syn_flag_number",
+      "shap_value": 0.31
+    },
+    {
+      "feature": "Rate",
+      "shap_value": 0.22
+    },
+    {
+      "feature": "syn_count",
+      "shap_value": 0.15
+    }
+  ],
+  "explanation_summary": "High SYN rate and SYN count drove the DDoS-SYN prediction.",
+  "recommended_action": "METER",
+  "source_ip": "10.0.0.5"
+}

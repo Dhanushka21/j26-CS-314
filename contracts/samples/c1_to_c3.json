@@ -1,0 +1,8 @@
+{
+  "device_id": "bp_monitor_01",
+  "timestamp": "2026-10-14T10:00:00Z",
+  "alert_type": "IDENTITY_COMPROMISE",
+  "cert_valid": true,
+  "behavior_score": 0.12,
+  "source_ip": "10.0.0.7"
+}
