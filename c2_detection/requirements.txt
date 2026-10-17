@@ -1,0 +1,12 @@
+numpy
+pandas
+scikit-learn
+imbalanced-learn
+torch
+joblib
+matplotlib
+fastapi
+uvicorn[standard]
+pydantic>=2
+httpx
+pytest
