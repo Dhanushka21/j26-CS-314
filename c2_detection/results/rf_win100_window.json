@@ -1,0 +1,9 @@
+{
+  "window": 100,
+  "val_weighted_f1": 0.9619656898588725,
+  "test_weighted_f1": 0.8921894632217622,
+  "test_macro_f1": 0.8420323633339759,
+  "test_accuracy": 0.8961298848404757,
+  "min_test_windows": 9,
+  "seconds": 275
+}
