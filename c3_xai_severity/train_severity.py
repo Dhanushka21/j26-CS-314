@@ -13,12 +13,14 @@ import os
 import random
 
 import joblib
+import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 
 from src import config, taxonomy
+from src.contract_loader import DEVICES, FEATURES
 from src.explain import Explainer
 from src.severity import ml_features
 from train_standin import synthetic
@@ -37,22 +39,25 @@ def main():
 
     if a.csv:
         df = pd.read_csv(a.csv).rename(columns={a.label_col: "label"})
+        df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=FEATURES)
     else:
         df = synthetic(n_per_class=100)
     df = df[df["label"].isin(taxonomy.ATTACK_SEVERITY)]          # attacks only
     df = df.sample(min(a.sample, len(df)), random_state=0)
 
-    devices = list(config.DEVICE_REGISTRY)
+    devices = list(DEVICES)
     rows, labels = [], []
     for _, r in df.iterrows():
-        x = [float(r[c]) for c in explainer.names]
+        x = [float(r[c]) for c in FEATURES]
         cls = r["label"]
-        proba = detector.predict_proba(pd.DataFrame([x], columns=explainer.names))[0]
+        proba = detector.predict_proba(pd.DataFrame([x], columns=FEATURES))[0]
+        order = np.argsort(-proba)
         conf = float(proba[explainer.classes.index(cls)])
-        mag = explainer.shap_magnitude(x, cls)
+        margin = float(proba[order[0]] - proba[order[1]])
+        _, mag = explainer.analyse(x, cls)
         dev = random.choice(devices)
         lc = taxonomy.device_is_life_critical(dev)
-        rows.append(ml_features(cls, conf, mag, lc).iloc[0])
+        rows.append(ml_features(cls, conf, mag, margin, lc).iloc[0])
         base = taxonomy.rule_severity(cls, conf, config.ESCALATE_CONF)
         labels.append(taxonomy.apply_override(base, lc)[0])
 

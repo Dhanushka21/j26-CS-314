@@ -7,9 +7,9 @@ import argparse
 import requests
 
 BASE = {
-    "device_id": "Test-Device", "timestamp": "2026-10-18T10:00:00Z", "attack_type": "TCP_IP-DDoS-SYN",
+    "device_id": "bp_monitor_01", "timestamp": "2026-10-18T10:00:00Z", "attack_type": "TCP_IP-DDoS-SYN",
     "confidence": 0.98,
-    "shap_top_features": [{"feature": "flow_duration", "contribution": 0.31}],
+    "shap_top_features": [{"feature": "syn_flag_number", "shap_value": 0.31}],
     "explanation_summary": "integration test",
 }
 CASES = [

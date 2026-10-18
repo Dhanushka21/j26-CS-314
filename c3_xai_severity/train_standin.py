@@ -1,9 +1,10 @@
 """Train a stand-in detector so you can build Component 3 without waiting for Component 2.
 
-  python train_standin.py                       # synthetic data (works right now)
+  python train_standin.py                                          # synthetic data (works right now)
   python train_standin.py --csv path/to/file.csv --label-col <name>   # real CICIoMT2024 CSV
 
-For real data: every column except the label must be numeric. Drop or encode anything else first.
+Features and classes come from the group's contracts (45 features, 19 classes), so the model fits
+Component 2's payloads. For real data the CSV needs all 45 feature columns (names as in contracts/features.json).
 """
 import argparse
 import os
@@ -15,19 +16,16 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
-from src import config, taxonomy
+from src import config
+from src.contract_loader import CLASSES, FEATURES
 
-CLASSES = [config.BENIGN_LABEL] + list(taxonomy.ATTACK_SEVERITY)
 
-
-def synthetic(n_per_class=120, n_features=46, seed=0):
+def synthetic(n_per_class=120, seed=0):
     rng = np.random.default_rng(seed)
-    cols = [f"f{i}" for i in range(n_features)]
     frames = []
-    for k, cls in enumerate(CLASSES):
-        centre = rng.normal(0, 3, n_features)
-        data = rng.normal(centre, 1.0, (n_per_class, n_features))
-        df = pd.DataFrame(data, columns=cols)
+    for cls in CLASSES:
+        centre = rng.normal(0, 3, len(FEATURES))
+        df = pd.DataFrame(rng.normal(centre, 1.0, (n_per_class, len(FEATURES))), columns=FEATURES)
         df["label"] = cls
         frames.append(df)
     return pd.concat(frames, ignore_index=True)
@@ -46,11 +44,15 @@ def main():
         if len(df) > a.max_rows:
             df = df.sample(a.max_rows, random_state=0)
         df = df.rename(columns={a.label_col: "label"})
+        missing = [c for c in FEATURES if c not in df.columns]
+        if missing:
+            raise SystemExit(f"CSV is missing contract feature columns: {missing}")
+        df = df[FEATURES + ["label"]].replace([np.inf, -np.inf], np.nan).dropna()
     else:
         print("No --csv given: using synthetic data.")
         df = synthetic()
 
-    X, y = df.drop(columns=["label"]), df["label"]
+    X, y = df[FEATURES], df["label"]
     Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
     model = RandomForestClassifier(n_estimators=60, max_depth=14, n_jobs=-1, random_state=42)
     model.fit(Xtr, ytr)
@@ -62,7 +64,7 @@ def main():
 
     unknown = sorted(set(model.classes_) - set(CLASSES))
     if unknown:
-        print("\nWARNING: these labels are not in src/taxonomy.py, fix the spelling or add them:")
+        print("\nWARNING: labels not in contracts/classes.json (fix spelling or ask the group):")
         for u in unknown:
             print("  ", u)
 

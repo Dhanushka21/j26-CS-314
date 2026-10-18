@@ -5,11 +5,18 @@ import numpy as np
 import pandas as pd
 import shap
 
+from .contract_loader import FEATURES
+
 
 class Explainer:
     def __init__(self, model, top_k: int = 3):
         self.model = model
         self.names = list(model.feature_names_in_)
+        if self.names != FEATURES:
+            raise RuntimeError(
+                "The detector model's feature names/order differ from contracts/features.json. "
+                "Retrain it with the 45 contract features in contract order."
+            )
         self.classes = list(model.classes_)
         self.top_k = top_k
         self.explainer = shap.TreeExplainer(model)
@@ -25,13 +32,12 @@ class Explainer:
             return sv[0, :, ci]
         return sv[0]
 
-    def top_features(self, x: List[float], predicted_class: str) -> List[Dict]:
+    def analyse(self, x: List[float], predicted_class: str):
+        """One SHAP call -> (top features in contract format, total |SHAP|)."""
         vals = self._values_for_class(x, predicted_class)
         order = np.argsort(-np.abs(vals))[: self.top_k]
-        return [{"feature": self.names[i], "contribution": round(float(vals[i]), 4)} for i in order]
-
-    def shap_magnitude(self, x: List[float], predicted_class: str) -> float:
-        return float(np.abs(self._values_for_class(x, predicted_class)).sum())
+        top = [{"feature": self.names[i], "shap_value": round(float(vals[i]), 4)} for i in order]
+        return top, float(np.abs(vals).sum())
 
 
 def summarize(attack_type: str, top: List[Dict]) -> str:

@@ -1,14 +1,12 @@
 """Severity taxonomy and the life-critical safety override.
 
-The label strings below are the CICIoMT2024 class names as I remember them.
-VERIFY them against the label column of your CSV (and against Component 2's output)
-and fix any spelling differences here. Component 4 passes attack_type through unchanged.
-
+The attack names below were checked against contracts/classes.json (a test enforces it).
 The attack -> severity table is a PROPOSAL. Agree it with Shanthasiri and your supervisor.
 """
 from typing import Optional, Tuple
 
 from . import config
+from .contract_loader import DEVICES
 
 ATTACK_SEVERITY = {
     # Volumetric floods that can take a device or broker offline
@@ -39,10 +37,11 @@ UNKNOWN_ATTACK_DEFAULT = "Medium"
 
 
 def device_is_life_critical(device_id: str) -> bool:
-    dtype = config.DEVICE_REGISTRY.get(device_id)
-    if dtype is None:
+    """Source of truth is contracts/devices.json (ventilator, insulin pump, infusion pump)."""
+    dev = DEVICES.get(device_id)
+    if dev is None:
         return config.UNKNOWN_DEVICE_IS_CRITICAL
-    return dtype in config.LIFE_CRITICAL_TYPES
+    return bool(dev["life_critical"])
 
 
 def rule_severity(attack_type: str, confidence: Optional[float] = None,

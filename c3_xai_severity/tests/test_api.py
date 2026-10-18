@@ -1,74 +1,89 @@
 import joblib
 import pytest
 from fastapi.testclient import TestClient
+from sklearn.ensemble import RandomForestClassifier
 
 from src.app import create_app
-from train_standin import CLASSES, synthetic
-from sklearn.ensemble import RandomForestClassifier
+from src.contract_loader import FEATURES, sample
+from train_standin import synthetic
+
+ALERT_FIELDS = {"device_id", "timestamp", "attack_type", "confidence", "severity", "critical_protection_flag",
+                "shap_top_features", "explanation_summary", "source_ip"}
 
 
 @pytest.fixture(scope="module")
 def setup(tmp_path_factory):
     df = synthetic(n_per_class=40)
-    X, y = df.drop(columns=["label"]), df["label"]
-    model = RandomForestClassifier(n_estimators=15, max_depth=8, random_state=0).fit(X, y)
+    model = RandomForestClassifier(n_estimators=15, max_depth=8, random_state=0).fit(df[FEATURES], df["label"])
     path = tmp_path_factory.mktemp("m") / "detector.joblib"
     joblib.dump(model, path)
-    client = TestClient(create_app(model_path=str(path), forward=False, severity_mode="rule"))
-    return client, df
+    return TestClient(create_app(model_path=str(path), forward=False, severity_mode="rule"))
 
 
-def payload(df, cls, device, conf=0.95):
-    row = df[df["label"] == cls].iloc[0].drop("label")
-    return {"device_id": device, "timestamp": "2026-10-18T10:00:00Z",
-            "feature_vector": [float(v) for v in row], "predicted_class": cls, "confidence": conf}
+def c2(device="bp_monitor_01", cls="TCP_IP-DoS-SYN", conf=0.95, **extra):
+    p = sample("c2_to_c3")
+    p.update(device_id=device, predicted_class=cls, confidence=conf, **extra)
+    return p
 
 
 def test_health(setup):
-    client, _ = setup
-    assert client.get("/health").json()["features"] == 46
+    assert setup.get("/health").json()["features"] == 45
+
+
+def test_group_sample_c2_to_c3_works(setup):
+    r = setup.post("/analyze", json=sample("c2_to_c3")).json()     # ventilator_01, DDoS-SYN
+    a = r["alert"]
+    assert r["status"] == "processed"
+    assert a["severity"] == "Critical" and a["critical_protection_flag"] is True
+    assert a["source_ip"] == "10.0.0.5"
 
 
 def test_alert_has_agreed_schema(setup):
-    client, df = setup
-    r = client.post("/api/v1/detection", json=payload(df, "TCP_IP-DoS-SYN", "Wearable-07")).json()
-    a = r["alert"]
-    assert set(a) == {"device_id", "timestamp", "attack_type", "confidence", "severity",
-                      "critical_protection_flag", "shap_top_features", "explanation_summary"}
+    a = setup.post("/analyze", json=c2()).json()["alert"]
+    assert set(a) == ALERT_FIELDS
     assert "recommended_action" not in a
     assert a["severity"] == "High" and a["critical_protection_flag"] is False
     assert len(a["shap_top_features"]) == 3
-    assert set(a["shap_top_features"][0]) == {"feature", "contribution"}
+    assert set(a["shap_top_features"][0]) == {"feature", "shap_value"}
+    assert all(f["feature"] in FEATURES for f in a["shap_top_features"])
 
 
 def test_life_critical_device_gets_critical_flag(setup):
-    client, df = setup
-    a = client.post("/api/v1/detection", json=payload(df, "Recon-Ping_Sweep", "Vent-01")).json()["alert"]
+    a = setup.post("/analyze", json=c2("insulin_pump_01", "Recon-Ping_Sweep")).json()["alert"]
     assert a["severity"] == "Critical" and a["critical_protection_flag"] is True
 
 
+def test_cardiac_monitor_is_not_life_critical_per_contracts(setup):
+    a = setup.post("/analyze", json=c2("cardiac_monitor_01", "Recon-Ping_Sweep")).json()["alert"]
+    assert a["severity"] == "Low" and a["critical_protection_flag"] is False
+
+
 def test_benign_is_skipped(setup):
-    client, df = setup
-    r = client.post("/api/v1/detection", json=payload(df, "Benign", "Vent-01")).json()
+    r = setup.post("/analyze", json=c2(cls="Benign")).json()
     assert r["status"] == "skipped_benign" and "alert" not in r
 
 
+def test_identity_compromise_from_c1(setup):
+    r = setup.post("/analyze", json=sample("c1_to_c3")).json()     # bp_monitor_01
+    a = r["alert"]
+    assert a["attack_type"] == "IDENTITY_COMPROMISE" and a["source_ip"] == "10.0.0.7"
+    assert a["shap_top_features"] == [] and a["critical_protection_flag"] is False
+    life = setup.post("/analyze", json={**sample("c1_to_c3"), "device_id": "ventilator_01"}).json()["alert"]
+    assert life["severity"] == "Critical" and life["critical_protection_flag"] is True
+
+
 def test_bad_inputs_are_rejected(setup):
-    client, df = setup
-    bad = payload(df, "TCP_IP-DoS-SYN", "Vent-01")
-    bad["feature_vector"] = bad["feature_vector"][:10]
-    assert client.post("/api/v1/detection", json=bad).status_code == 422
-    bad2 = payload(df, "TCP_IP-DoS-SYN", "Vent-01", conf=1.7)
-    assert client.post("/api/v1/detection", json=bad2).status_code == 422
-    bad3 = payload(df, "TCP_IP-DoS-SYN", "Vent-01")
-    bad3["predicted_class"] = "Made_Up_Attack"
-    assert client.post("/api/v1/detection", json=bad3).status_code == 422
+    short = c2()
+    short["features"] = short["features"][:10]
+    assert setup.post("/analyze", json=short).status_code == 422
+    assert setup.post("/analyze", json=c2(conf=1.7)).status_code == 422
+    assert setup.post("/analyze", json=c2(cls="Made_Up_Attack")).status_code == 422
+    assert setup.post("/analyze", json={"hello": "world"}).status_code == 422
 
 
 def test_latency_under_100ms(setup):
-    client, df = setup
-    p = payload(df, "TCP_IP-DDoS-SYN", "Wearable-07")
-    client.post("/api/v1/detection", json=p)  # warm-up
-    times = [client.post("/api/v1/detection", json=p).json()["processing_ms"] for _ in range(20)]
-    print("processing_ms:", sorted(times))
-    assert sorted(times)[int(len(times) * 0.9)] < 100
+    p = c2("bp_monitor_01", "TCP_IP-DDoS-SYN")
+    setup.post("/analyze", json=p)  # warm-up
+    times = sorted(setup.post("/analyze", json=p).json()["processing_ms"] for _ in range(20))
+    print("processing_ms:", times)
+    assert times[int(len(times) * 0.9)] < 100
