@@ -16,8 +16,8 @@ from src.metrics import evaluate, single_event_latency_ms
 
 
 def last_flow(x: np.ndarray) -> np.ndarray:
-    """(n, 10, 45) -> (n, 45): RF / MLP only see the newest flow of each window."""
-    return np.ascontiguousarray(x[:, -1, :])
+    """(n, 10, 45) -> (n, 44): newest flow of each window, model features only (no IAT)."""
+    return np.ascontiguousarray(x[:, -1, C.MODEL_FEATURE_IDX])
 
 
 def main():
@@ -25,7 +25,7 @@ def main():
     x_tr, y_tr = last_flow(d["X_train"]), d["y_train"]
     x_val, y_val = last_flow(d["X_val"]), d["y_val"]
     x_te, y_te = last_flow(d["X_test"]), d["y_test"]
-    print(f"train={x_tr.shape}  val={x_val.shape}  test={x_te.shape}")
+    print(f"train={x_tr.shape}  val={x_val.shape}  test={x_te.shape}  dropped={C.DROP_FEATURES}")
 
     model = RandomForestClassifier(
         n_estimators=100,        # number of trees
@@ -43,11 +43,12 @@ def main():
     proba = model.predict_proba(x_te)
     model.n_jobs = 1                                     # the API classifies one flow at a time
     latency = single_event_latency_ms(lambda s: model.predict_proba(s), x_te[:1])
-    evaluate("rf", y_te, proba, latency)
+    evaluate(f"rf{C.RUN_TAG}", y_te, proba, latency)
 
     C.MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, C.MODELS_DIR / "rf.joblib", compress=3)
-    print(f"\nsaved models/rf.joblib")
+    name = f"rf{C.RUN_TAG}.joblib"
+    joblib.dump(model, C.MODELS_DIR / name, compress=3)
+    print(f"\nsaved models/{name}")
 
 
 if __name__ == "__main__":

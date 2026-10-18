@@ -51,3 +51,15 @@ PATIENCE = 4
 BASELINE_MULTICLASS_ACC = 0.733   
 TARGET_WEIGHTED_F1 = 0.90         # NFR3
 MAX_LATENCY_MS = 100              # NFR1
+
+# ---------------------------------------------------------------
+# 6. Feature selection
+# ---------------------------------------------------------------
+# IAT encodes the capture time (e.g. 84,679,164 vs 84,696,876 per file),
+# not attack behaviour -> the model would learn "which capture" = leakage.
+# Set env C2_KEEP_IAT=1 to run the "with IAT" ablation.
+KEEP_IAT = os.getenv("C2_KEEP_IAT") == "1"
+DROP_FEATURES = [] if KEEP_IAT else ["IAT"]
+MODEL_FEATURES = [f for f in FEATURES if f not in DROP_FEATURES]
+MODEL_FEATURE_IDX = [FEATURES.index(f) for f in MODEL_FEATURES]
+RUN_TAG = "_withIAT" if KEEP_IAT else ""

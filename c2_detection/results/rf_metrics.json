@@ -1,9 +1,9 @@
 {
   "model": "rf",
-  "accuracy": 0.9693418002977257,
-  "weighted_f1": 0.9686311644447101,
-  "macro_f1": 0.8482249946975223,
-  "weighted_precision": 0.9835861440915045,
-  "weighted_recall": 0.9693418002977257,
-  "latency_ms_per_event": 3.0336065001029056
+  "accuracy": 0.7549039929148844,
+  "weighted_f1": 0.7514296021388247,
+  "macro_f1": 0.6815324772082898,
+  "weighted_precision": 0.7744746570693997,
+  "weighted_recall": 0.7549039929148844,
+  "latency_ms_per_event": 3.964339500089409
 }

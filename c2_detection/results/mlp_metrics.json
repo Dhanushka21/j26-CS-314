@@ -1,0 +1,9 @@
+{
+  "model": "mlp",
+  "accuracy": 0.7514179652904709,
+  "weighted_f1": 0.7474295891415335,
+  "macro_f1": 0.6587980661828432,
+  "weighted_precision": 0.7777815057834108,
+  "weighted_recall": 0.7514179652904709,
+  "latency_ms_per_event": 0.14687399991089478
+}
