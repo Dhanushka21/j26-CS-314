@@ -1,0 +1,9 @@
+{
+  "model": "lstm",
+  "weighted_f1": 0.8173220943041293,
+  "macro_f1": 0.7753410929950192,
+  "window_size": 10,
+  "dropped_features": [
+    "IAT"
+  ]
+}
