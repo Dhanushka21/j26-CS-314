@@ -1,0 +1,11 @@
+pandas
+numpy
+scikit-learn
+shap
+joblib
+fastapi
+uvicorn
+pydantic>=2
+requests
+httpx
+pytest
