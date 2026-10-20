@@ -1,4 +1,4 @@
-"""STEP 9: compare RF vs MLP vs LSTM, pick the best by weighted F1, draw the charts.
+"""STEP 9 / 13: compare RF vs MLP vs LSTM vs RF-on-window-stats, pick the best, draw the charts.
 
 Run from repo root:   python c2_detection/compare.py
 Creates:
@@ -22,6 +22,13 @@ import config as C  # noqa: E402
 MODELS = ["rf", "mlp", "lstm"]                      # main comparison (no IAT)
 LABELS = {"rf": "Random Forest", "mlp": "MLP", "lstm": "LSTM"}
 
+# Step 13: add the window-statistics RF whose window was chosen on VALIDATION (window_curve.py)
+_choice = C.RESULTS_DIR / "window_choice.json"
+WIN = json.loads(_choice.read_text())["best_window"] if _choice.exists() else None
+if WIN:
+    MODELS.append(f"rf_win{WIN}")
+    LABELS[f"rf_win{WIN}"] = f"RF window-stats (w={WIN})"
+
 
 def load_metrics() -> pd.DataFrame:
     rows = []
@@ -37,14 +44,14 @@ def load_metrics() -> pd.DataFrame:
 def plot_overall(df: pd.DataFrame):
     main = df.loc[[m for m in MODELS if m in df.index]]
     main = main.rename(index=LABELS)
-    ax = main[["accuracy", "weighted_f1", "macro_f1"]].plot.bar(figsize=(9, 5), rot=0, width=0.75)
+    ax = main[["accuracy", "weighted_f1", "macro_f1"]].plot.bar(figsize=(10, 5), rot=0, width=0.75)
     ax.axhline(C.BASELINE_MULTICLASS_ACC, ls="--", c="red", label="Yapa et al. 2025 (73.3%)")
     ax.axhline(C.TARGET_WEIGHTED_F1, ls=":", c="green", label="Target (90%)")
     for cont in ax.containers:
         ax.bar_label(cont, fmt="%.2f", fontsize=8)
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("Score (test set)")
-    ax.set_title("C2: 19-class detection on CICIoMT2024 (IAT removed)")
+    ax.set_title("C2: 19-class detection on CICIoMT2024 (IAT removed, test set)")
     ax.legend(loc="lower right", fontsize=8)
     plt.tight_layout()
     plt.savefig(C.RESULTS_DIR / "comparison.png", dpi=150)
@@ -105,11 +112,12 @@ def main():
     print(f"  vs target 90% weighted-F1    : {(b['weighted_f1'] - C.TARGET_WEIGHTED_F1) * 100:+.1f} points")
     print(f"  latency < {C.MAX_LATENCY_MS} ms             : {b['latency_ms_per_event'] < C.MAX_LATENCY_MS}")
 
+    is_win = best.startswith("rf_win")
     (C.MODELS_DIR / "best_model.json").write_text(json.dumps({
-        "model": best,
+        "model": "rf_win" if is_win else best,
+        "window": WIN if is_win else C.WINDOW_SIZE,
         "weighted_f1": float(b["weighted_f1"]),
         "macro_f1": float(b["macro_f1"]),
-        "window_size": C.WINDOW_SIZE,
         "dropped_features": C.DROP_FEATURES,
     }, indent=2))
 

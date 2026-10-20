@@ -39,7 +39,7 @@ async def add_timing_header(request: Request, call_next):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "model": predictor.kind, "window_size": C.WINDOW_SIZE,
+    return {"status": "ok", "model": predictor.kind, "window_size": predictor.window,
             "dropped_features": C.DROP_FEATURES}
 
 
