@@ -1,0 +1,37 @@
+{
+  "note": "Maps a CICIoMT2024 capture device to a simulated clinical device in the Mininet topology. Required because the WiFi profiling captures are consumer IoT hardware, while contracts/devices.json names clinical equipment. Per contracts/README.md rule 5, device_id comes from the topology, not the dataset. Each mapping is justified by behavioural similarity, not by device purpose.",
+  "map": {
+    "SenseU": {
+      "device_id": "ventilator_01",
+      "justification": "continuous periodic telemetry at a steady low rate, matching a ventilator's status reporting"
+    },
+    "Singcall": {
+      "device_id": "insulin_pump_01",
+      "justification": "low-rate intermittent event traffic, matching dose-event reporting"
+    },
+    "Multifunctional_Pager": {
+      "device_id": "infusion_pump_01",
+      "justification": "event-driven bursts against an otherwise quiet baseline"
+    },
+    "Ecobee_Camera": {
+      "device_id": "cardiac_monitor_01",
+      "justification": "continuous high-rate stream, matching waveform telemetry"
+    },
+    "M1T_Camera": {
+      "device_id": "bp_monitor_01",
+      "justification": "periodic bursts separated by idle gaps, matching cuff-cycle measurement"
+    },
+    "Owltron_Camera": {
+      "device_id": "patient_server_01",
+      "justification": "sustained bidirectional traffic with many peers"
+    },
+    "Blink_Camera": {
+      "device_id": "admin_server_01",
+      "justification": "mixed LAN and WAN traffic, matching an administrative host"
+    },
+    "Blink_Mini_Camera": {
+      "device_id": "admin_server_01",
+      "justification": "second capture of the same administrative profile"
+    }
+  }
+}
