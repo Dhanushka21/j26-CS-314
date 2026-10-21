@@ -1,0 +1,24 @@
+{
+  "note": "Index order = probability/label order. Names match CICIoMT2024 file names (digits stripped).",
+  "classes": [
+    "Benign",
+    "ARP_Spoofing",
+    "MQTT-DDoS-Connect_Flood",
+    "MQTT-DDoS-Publish_Flood",
+    "MQTT-DoS-Connect_Flood",
+    "MQTT-DoS-Publish_Flood",
+    "MQTT-Malformed_Data",
+    "Recon-OS_Scan",
+    "Recon-Ping_Sweep",
+    "Recon-Port_Scan",
+    "Recon-VulScan",
+    "TCP_IP-DDoS-ICMP",
+    "TCP_IP-DDoS-SYN",
+    "TCP_IP-DDoS-TCP",
+    "TCP_IP-DDoS-UDP",
+    "TCP_IP-DoS-ICMP",
+    "TCP_IP-DoS-SYN",
+    "TCP_IP-DoS-TCP",
+    "TCP_IP-DoS-UDP"
+  ]
+}
