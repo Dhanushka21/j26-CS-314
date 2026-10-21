@@ -1,0 +1,58 @@
+
+==========================================================================
+RUN A - normal operation
+==========================================================================
+  sess-0017  device=cardiac_monitor_01 cert=VALID  score=0.63  -> PERMIT
+              behaviour score 0.63 within baseline
+  sess-0019  device=cardiac_monitor_01 cert=VALID  score=0.63  -> PERMIT
+              behaviour score 0.63 within baseline
+  sess-0031  device=cardiac_monitor_01 cert=VALID  score=0.65  -> PERMIT
+              behaviour score 0.65 within baseline
+
+  The device behaves like its baseline. Session continues.
+  Across all 44 held-out windows for this device, 25 permit, 19 do not
+  - the false-restriction cost measured in out/tradeoff_*.csv.
+
+==========================================================================
+RUN B - identity compromise (valid certificate)
+==========================================================================
+  replaying ARP_Spoofing_test, claiming to be cardiac_monitor_01
+
+  sess-0000  device=cardiac_monitor_01 cert=VALID  score=0.06  -> REVOKE
+              behaviour score 0.06 inconsistent with device baseline
+  sess-0001  device=cardiac_monitor_01 cert=VALID  score=0.02  -> REVOKE
+              behaviour score 0.02 inconsistent with device baseline
+  sess-0002  device=cardiac_monitor_01 cert=VALID  score=0.02  -> REVOKE
+              behaviour score 0.02 inconsistent with device baseline
+
+  certificate-only baseline : ACCEPTED   0/16 detected
+                              (the certificate is genuinely valid)
+  behavioural layer         : REJECTED   16/16 detected
+
+==========================================================================
+RUN C - clinical safety constraint
+==========================================================================
+  same attack, now claiming to be ventilator_01 (life-critical)
+
+  sess-0000  device=ventilator_01      cert=VALID  score=0.04  -> CONTAIN  [constraint_applied=TRUE]
+              behaviour score 0.04 inconsistent with device baseline
+              life-critical: containment applied instead of revocation
+              escalated to clinical engineering
+              retained path: ventilator_01 -> patient_server_01:443
+  sess-0001  device=ventilator_01      cert=VALID  score=0.04  -> CONTAIN  [constraint_applied=TRUE]
+              behaviour score 0.04 inconsistent with device baseline
+              life-critical: containment applied instead of revocation
+              escalated to clinical engineering
+              retained path: ventilator_01 -> patient_server_01:443
+
+  --- re-running with --no-safety-constraint ---
+
+  sess-0000  device=ventilator_01      cert=VALID  score=0.04  -> REVOKE  [constraint_applied=FALSE]
+  sess-0001  device=ventilator_01      cert=VALID  score=0.04  -> REVOKE  [constraint_applied=FALSE]
+
+  Same device, same score, same code. The only difference is
+  whether the constraint is active.
+    constraint on  : 16 contained, 0 severed
+    constraint off : 16 severed
+
+==========================================================================

@@ -1,0 +1,3 @@
+safety_constraint,life_critical_sessions,severed_REVOKE,contained_CONTAIN,availability_preserved
+True,115,0,58,100.0%
+False,115,58,0,49.6%

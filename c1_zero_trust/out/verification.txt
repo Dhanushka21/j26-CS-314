@@ -1,0 +1,11 @@
+=== exhaustive verification: clinical safety constraint ===
+life-critical devices: ['ventilator_01', 'insulin_pump_01', 'infusion_pump_01']
+band boundaries: revoke below 0.15, permit above 0.5
+
+constraint ENABLED  : 16,080 input combinations checked
+  PASS - no reachable input isolates a life-critical device
+
+constraint DISABLED : 16,080 input combinations checked
+  3,468 combinations isolate a life-critical device
+  (the verification above is therefore testing a real property,
+   not a tautology of the decision code)
