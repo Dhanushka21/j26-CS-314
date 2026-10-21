@@ -406,7 +406,7 @@ class MitigationAPI(ControllerBase):
             )
         except Exception as e:
             logger.error(f"C3 alert error: {e}")
-            return Response(status=400, body=json.dumps({'error': str(e).encode('utf-8')}),
+            return Response(status=400, body=json.dumps({'error': str(e)}).encode('utf-8'),
                            content_type='application/json')
 
     @route('mitigation', '/api/v1/lateral', methods=['POST'])
@@ -427,7 +427,7 @@ class MitigationAPI(ControllerBase):
             )
         except Exception as e:
             logger.error(f"C1 alert error: {e}")
-            return Response(status=400, body=json.dumps({'error': str(e).encode('utf-8')}),
+            return Response(status=400, body=json.dumps({'error': str(e)}).encode('utf-8'),
                            content_type='application/json')
 
     @route('mitigation', '/api/v1/status', methods=['GET'])
@@ -437,11 +437,11 @@ class MitigationAPI(ControllerBase):
             content_type='application/json',
             body=json.dumps({
                 'status': 'running',
-                'active_incidents': len(self.app.incidents).encode('utf-8'),
+                'active_incidents': len(self.app.incidents),
                 'connected_switches': len(self.app.datapaths),
                 'ml_model_loaded': self.app.ml_model is not None,
                 'incidents': self.app.incidents[-10:]
-            })
+            }).encode('utf-8')
         )
 
     @route('mitigation', '/api/v1/health', methods=['GET'])
@@ -453,10 +453,10 @@ class MitigationAPI(ControllerBase):
                 'status': 'healthy',
                 'component': 'C4-SDN-Mitigation',
                 'student': 'A.A.N. Dulsara IT23344006',
-                'timestamp': datetime.utcnow().encode('utf-8').isoformat() + 'Z',
+                'timestamp': datetime.utcnow().isoformat() + 'Z',
                 'switches': len(self.app.datapaths),
                 'incidents': len(self.app.incidents)
-            })
+            }).encode('utf-8')
         )
 
     @route('mitigation', '/api/v1/incidents', methods=['GET'])
@@ -465,7 +465,7 @@ class MitigationAPI(ControllerBase):
         return Response(
             content_type='application/json',
             body=json.dumps({
-                'total': len(self.app.incidents).encode('utf-8'),
+                'total': len(self.app.incidents),
                 'incidents': self.app.incidents
-            })
+            }).encode('utf-8')
         )

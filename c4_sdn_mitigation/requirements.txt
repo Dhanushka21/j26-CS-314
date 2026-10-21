@@ -1,0 +1,19 @@
+# Component 4 - Adaptive SDN Mitigation with Self-Healing
+# A.A.N. Dulsara | IT23344006 | J-26-CS-314
+
+# SDN Controller
+ryu==4.34
+eventlet==0.30.2
+dnspython==2.2.1
+
+# Machine Learning
+scikit-learn==1.6.1
+joblib==1.3.2
+numpy>=1.21.0
+pandas>=1.3.0
+
+# Networking
+mininet>=2.3.0
+
+# Utilities
+requests>=2.28.0
