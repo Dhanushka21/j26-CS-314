@@ -16,9 +16,39 @@ import numpy as np
 import threading
 import time
 import logging
+import os
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'models')
+
+FEATURE_COLUMNS = [
+    'dst_port','protocol','flow_duration','tot_fwd_pkts','tot_bwd_pkts',
+    'totlen_fwd_pkts','totlen_bwd_pkts','fwd_pkt_len_max','fwd_pkt_len_min',
+    'fwd_pkt_len_mean','fwd_pkt_len_std','bwd_pkt_len_max','bwd_pkt_len_min',
+    'bwd_pkt_len_mean','bwd_pkt_len_std','flow_byts_s','flow_pkts_s',
+    'flow_iat_mean','flow_iat_std','flow_iat_max','flow_iat_min',
+    'fwd_iat_tot','fwd_iat_mean','fwd_iat_std','fwd_iat_max','fwd_iat_min',
+    'bwd_iat_tot','bwd_iat_mean','bwd_iat_std','bwd_iat_max','bwd_iat_min',
+    'fwd_psh_flags','bwd_psh_flags','fwd_urg_flags','bwd_urg_flags',
+    'fwd_header_len','bwd_header_len','fwd_pkts_s','bwd_pkts_s',
+    'pkt_len_min','pkt_len_max','pkt_len_mean','pkt_len_std','pkt_len_var',
+    'fin_flag_cnt','syn_flag_cnt','rst_flag_cnt','psh_flag_cnt','ack_flag_cnt',
+    'urg_flag_cnt','cwe_flag_count','ece_flag_cnt','down_up_ratio',
+    'pkt_size_avg','fwd_seg_size_avg','bwd_seg_size_avg','fwd_byts_b_avg',
+    'fwd_pkts_b_avg','fwd_blk_rate_avg','bwd_byts_b_avg','bwd_pkts_b_avg',
+    'bwd_blk_rate_avg','subflow_fwd_pkts','subflow_fwd_byts',
+    'subflow_bwd_pkts','subflow_bwd_byts','init_fwd_win_byts',
+    'init_bwd_win_byts','fwd_act_data_pkts','fwd_seg_size_min',
+    'active_mean','active_std','active_max','active_min',
+    'idle_mean','idle_std','idle_max','idle_min',
+]
+
+def build_feature_vector(alert_data):
+    return __import__('numpy').array(
+        [float(alert_data.get(c, 0.0)) for c in FEATURE_COLUMNS]
+    ).reshape(1, -1)
 
 # Clinical Priority Scores
 DEVICE_PRIORITY = {
@@ -85,6 +115,8 @@ class Component4App(app_manager.RyuApp):
         self.incidents = []
         self.self_healing_log = []
         self.ml_model = None
+        self.label_encoder = None
+        self.scaler = None
         self.load_ml_model()
 
         wsgi = kwargs['wsgi']
@@ -97,11 +129,33 @@ class Component4App(app_manager.RyuApp):
 
     def load_ml_model(self):
         try:
-            self.ml_model = joblib.load('models/rf_model.pkl')
-            logger.info("ML model loaded successfully")
+            self.ml_model      = joblib.load(os.path.join(MODEL_DIR, 'rf_model.pkl'))
+            self.label_encoder = joblib.load(os.path.join(MODEL_DIR, 'label_encoder.pkl'))
+            self.scaler        = joblib.load(os.path.join(MODEL_DIR, 'scaler.pkl'))
+            logger.info("ML model loaded: RF + LabelEncoder + Scaler")
+            logger.info(f"  Classes: {list(self.label_encoder.classes_)}")
         except Exception as e:
             logger.warning(f"ML model not loaded: {e} - running without ML")
             self.ml_model = None
+            self.label_encoder = None
+            self.scaler = None
+
+    def ml_predict(self, alert_data):
+        if not all([self.ml_model, self.label_encoder, self.scaler]):
+            return {'predicted_class':'Unknown','confidence':0.0,'ml_available':False}
+        try:
+            import numpy as np
+            X = build_feature_vector(alert_data)
+            X_scaled = self.scaler.transform(X)
+            pred_idx = self.ml_model.predict(X_scaled)[0]
+            proba    = self.ml_model.predict_proba(X_scaled)[0]
+            conf     = float(np.max(proba))
+            cls      = self.label_encoder.inverse_transform([pred_idx])[0]
+            logger.info(f"ML: {cls} (conf={conf:.2f})")
+            return {'predicted_class':cls,'confidence':conf,'ml_available':True}
+        except Exception as e:
+            logger.error(f"ML error: {e}")
+            return {'predicted_class':'Unknown','confidence':0.0,'ml_available':False}
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -205,6 +259,18 @@ class Component4App(app_manager.RyuApp):
         shap_features = alert_data.get('shap_top_features', [])
         explanation = alert_data.get('explanation_summary', '')
 
+        # ML Prediction
+        ml_result = self.ml_predict(alert_data)
+        ml_cls  = ml_result['predicted_class']
+        ml_conf = ml_result['confidence']
+        ml_avail = ml_result['ml_available']
+        ml_override = False
+        if ml_avail and ml_conf >= 0.70 and ml_cls == 'Normal':
+            logger.info(f"ML override: C3='{attack_type}' but ML=Normal - downgrading")
+            action = 'monitor'
+            reason = f"ML predicts Normal (conf={ml_conf:.2f}) - no rule installed"
+            ml_override = True
+
         # Find device IP from device_id
         dst_ip = None
         for ip, name in DEVICE_NAMES.items():
@@ -215,22 +281,23 @@ class Component4App(app_manager.RyuApp):
         device_priority = DEVICE_PRIORITY.get(dst_ip, 500) if dst_ip else 500
 
         # Determine action based on severity and critical flag
-        if severity == 'Critical' and critical_flag:
-            action = 'rate_limit'
-            reason = 'Critical device protected - rate limit only'
-        elif severity == 'Critical' and not critical_flag:
-            action = 'block'
-            reason = 'Critical attack - full block'
-        elif severity == 'High':
-            action = 'redirect_honeypot'
-            reason = 'High severity - redirect to honeypot'
-        elif severity == 'Medium':
-            action = 'rate_limit'
-            reason = 'Medium severity - rate limit'
-        else:
-            action = 'monitor'
-            reason = 'Low severity - monitor only'
-
+        # Determine action based on severity and critical flag
+        if not ml_override:
+            if severity == 'Critical' and critical_flag:
+                action = 'rate_limit'
+                reason = 'Critical device protected - rate limit only'
+            elif severity == 'Critical' and not critical_flag:
+                action = 'block'
+                reason = 'Critical attack - full block'
+            elif severity == 'High':
+                action = 'redirect_honeypot'
+                reason = 'High severity - redirect to honeypot'
+            elif severity == 'Medium':
+                action = 'rate_limit'
+                reason = 'Medium severity - rate limit'
+            else:
+                action = 'monitor'
+                reason = 'Low severity - monitor only'
         # Apply to all connected datapaths
         rule_applied = False
         for dpid, datapath in self.datapaths.items():
@@ -259,7 +326,8 @@ class Component4App(app_manager.RyuApp):
             'shap_features': shap_features,
             'explanation': explanation,
             'rule_applied': rule_applied,
-            'source': alert_data.get('source', 'C3')
+            'source': alert_data.get('source', 'C3'),
+            'ml_prediction': {'class': ml_cls, 'confidence': ml_conf, 'available': ml_avail, 'override': ml_override}
         }
         self.incidents.append(incident)
         logger.info(f"INCIDENT #{incident['id']}: {device_id} | {attack_type} | {severity} | Action: {action}")
