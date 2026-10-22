@@ -38,19 +38,25 @@ def create_app(model_path: str = None, forward_url: str = None, forward: bool = 
     target = forward_url or config.COMPONENT4_URL
 
     def send(alert: Alert):
+        """Returns (forwarded, error, Component 4's reply body if it sent JSON)."""
         if not forward:
-            return False, None
+            return False, None, None
         try:
             r = requests.post(target, json=alert.model_dump(exclude_none=True), timeout=config.COMPONENT4_TIMEOUT_S)
-            return r.ok, (None if r.ok else f"component4 returned {r.status_code}")
+            try:
+                body = r.json()
+            except ValueError:
+                body = None
+            return r.ok, (None if r.ok else f"component4 returned {r.status_code}"), body
         except requests.RequestException as e:
             log.warning("could not reach Component 4: %s", e)
-            return False, str(e)
+            return False, str(e), None
 
     def respond(alert: Alert, t0: float):
-        forwarded, err = send(alert)
+        forwarded, err, c4_body = send(alert)
         return {"status": "processed", "processing_ms": round((time.perf_counter() - t0) * 1000, 2),
-                "forwarded": forwarded, "forward_error": err, "alert": alert.model_dump(exclude_none=True)}
+                "forwarded": forwarded, "forward_error": err, "component4_response": c4_body,
+                "alert": alert.model_dump(exclude_none=True)}
 
     @app.get("/health")
     def health():
