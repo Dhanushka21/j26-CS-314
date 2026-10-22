@@ -1,0 +1,21 @@
+{
+  "events_sent": 2000,
+  "succeeded": 2000,
+  "failed": 0,
+  "success_rate_pct": 100.0,
+  "devices": [
+    "ventilator_01"
+  ],
+  "wall_time_s": 15.0,
+  "throughput_events_per_s": 133.4,
+  "capacity_events_per_day": 11522951,
+  "latency_ms": {
+    "mean": 7.47,
+    "p50": 7.34,
+    "p95": 8.1,
+    "p99": 9.01,
+    "max": 74.73
+  },
+  "nfr1_p95_under_100ms": true,
+  "nfr4_10k_events_per_day": true
+}

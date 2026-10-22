@@ -1,0 +1,9 @@
+{
+  "model": "rf_win30",
+  "accuracy": 0.8596150583444869,
+  "weighted_f1": 0.8560593657299409,
+  "macro_f1": 0.8144392563212407,
+  "weighted_precision": 0.8691557948107078,
+  "weighted_recall": 0.8596150583444869,
+  "latency_ms_per_event": 7.417195499874651
+}

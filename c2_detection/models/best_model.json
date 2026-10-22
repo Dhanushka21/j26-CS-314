@@ -1,0 +1,9 @@
+{
+  "model": "rf_win",
+  "window": 150,
+  "weighted_f1": 0.906734597964668,
+  "macro_f1": 0.8357322905385678,
+  "dropped_features": [
+    "IAT"
+  ]
+}

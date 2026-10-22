@@ -1,0 +1,9 @@
+{
+  "model": "lstm",
+  "accuracy": 0.8229851702500518,
+  "weighted_f1": 0.8173220943041293,
+  "macro_f1": 0.7753410929950192,
+  "weighted_precision": 0.8396365545206391,
+  "weighted_recall": 0.8229851702500518,
+  "latency_ms_per_event": 1.1535205000836868
+}

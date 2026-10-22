@@ -1,0 +1,27 @@
+{
+  "events_sent": 10000,
+  "succeeded": 10000,
+  "failed": 0,
+  "success_rate_pct": 100.0,
+  "devices": [
+    "ventilator_01",
+    "insulin_pump_01",
+    "infusion_pump_01",
+    "cardiac_monitor_01",
+    "bp_monitor_01",
+    "patient_server_01",
+    "admin_server_01"
+  ],
+  "wall_time_s": 121.5,
+  "throughput_events_per_s": 82.3,
+  "capacity_events_per_day": 7112106,
+  "latency_ms": {
+    "mean": 84.93,
+    "p50": 84.08,
+    "p95": 99.09,
+    "p99": 113.43,
+    "max": 203.92
+  },
+  "nfr1_p95_under_100ms": true,
+  "nfr4_10k_events_per_day": true
+}

@@ -1,0 +1,6 @@
+{
+  "best_window": 150,
+  "chosen_on": "validation weighted-F1",
+  "val_weighted_f1": 0.9676464130277086,
+  "test_weighted_f1": 0.906734597964668
+}
