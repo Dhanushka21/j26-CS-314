@@ -7,8 +7,10 @@
       buffer has <  W flows (warm-up)  -> window statistics of the last 10 flows -> rf_win10
       (fewer than 10 flows: the first flow is repeated to fill 10)
 - "lstm" / "mlp" / "rf" (Step 10 models) are still supported.
+- Thread-safe: one lock, so parallel requests never corrupt a device buffer.
 """
 import json
+import threading
 from collections import defaultdict, deque
 
 import joblib
@@ -33,6 +35,9 @@ class Predictor:
         self.window = int(info.get("window", C.WINDOW_SIZE))
         self.idx = C.MODEL_FEATURE_IDX
         self.buffers: dict[str, deque] = defaultdict(lambda: deque(maxlen=self.window))
+        # FastAPI runs requests in parallel threads. One lock makes buffer updates safe and
+        # stops threads fighting over the CPU (the model is fastest one-at-a-time).
+        self.lock = threading.Lock()
 
         if self.kind == "rf_win":
             self.model = joblib.load(C.MODELS_DIR / f"rf_win{self.window}.joblib")
@@ -55,7 +60,11 @@ class Predictor:
         print(f"[C2] serving {self.kind.upper()} window={self.window}  (weighted-F1={info['weighted_f1']:.4f})")
 
     def predict(self, device_id: str, features: list[float]) -> np.ndarray:
-        """Return 19 class probabilities for the newest flow of `device_id`."""
+        """Return 19 class probabilities for the newest flow of `device_id` (thread-safe)."""
+        with self.lock:
+            return self._predict(device_id, features)
+
+    def _predict(self, device_id: str, features: list[float]) -> np.ndarray:
         x = np.nan_to_num(np.asarray(features, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0)
         buf = self.buffers[device_id]
         buf.append(x)
