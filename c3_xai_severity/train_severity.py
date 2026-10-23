@@ -23,14 +23,14 @@ from src import config, taxonomy
 from src.contract_loader import DEVICES, FEATURES
 from src.explain import Explainer
 from src.severity import ml_features
-from train_standin import synthetic
+from train_standin import load_big_csv, synthetic
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv")
     ap.add_argument("--label-col", default="label")
-    ap.add_argument("--sample", type=int, default=1500)
+    ap.add_argument("--sample", type=int, default=1500, help="rows used (SHAP is slow, 1500 is enough)")
     ap.add_argument("--out", default=config.SEVERITY_MODEL_PATH)
     a = ap.parse_args()
 
@@ -38,11 +38,12 @@ def main():
     explainer = Explainer(detector)
 
     if a.csv:
-        df = pd.read_csv(a.csv).rename(columns={a.label_col: "label"})
+        df = load_big_csv(a.csv, a.label_col, per_class=300)      # chunked read + label-name mapping
         df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=FEATURES)
     else:
         df = synthetic(n_per_class=100)
-    df = df[df["label"].isin(taxonomy.ATTACK_SEVERITY)]          # attacks only
+    # attacks only, and only classes the detector model actually knows
+    df = df[df["label"].isin(taxonomy.ATTACK_SEVERITY) & df["label"].isin(explainer.classes)]
     df = df.sample(min(a.sample, len(df)), random_state=0)
 
     devices = list(DEVICES)
